@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+ <extension key="uk.co.vedaconsulting.payment.smartdebitdd" type="payment">
+  <downloadUrl>http://www.vedaconsulting.co.uk</downloadUrl>
+  <file>smart_debit_dd</file>
+  <name>Smart Debit</name>
+  <description>Smart Debit by Veda Consulting</description>
+  <urls>
+    <url desc="Main Extension Page"></url>
+    <url desc="Documentation"></url>
+    <url desc="Support"></url>
+    <url desc="Licensing"></url>
+  </urls>
+  <license>AGPL</license>
+  <maintainer>
+    <author>Veda Consulting</author>
+    <email>parvez@vedaconsulting.co.uk</email>
+  </maintainer>
+  <releaseDate>2012-09-01</releaseDate>
+  <version>0.2</version>
+  <develStage>alpha</develStage>
+  <compatibility><ver>4.1</ver></compatibility>
+  <comments></comments>
+  <typeInfo>
+   <userNameLabel>API Username</userNameLabel>
+   <passwordLabel>API Password</passwordLabel>
+   <signatureLabel>PSL ID</signatureLabel>
+   <subjectLabel></subjectLabel>
+   <urlSiteDefault></urlSiteDefault>
+   <urlApiDefault>https://secure.ddprocessing.co.uk/</urlApiDefault>
+   <urlRecurDefault></urlRecurDefault>
+   <urlSiteTestDefault></urlSiteTestDefault>
+   <urlApiTestDefault>https://secure.ddprocessing.co.uk/</urlApiTestDefault>
+   <urlRecurTestDefault></urlRecurTestDefault>
+   <urlButtonDefault></urlButtonDefault>
+   <urlButtonTestDefault></urlButtonTestDefault>
+   <billingMode>form</billingMode>
+   <isRecur>1</isRecur>
+   <paymentType>2</paymentType>
+  </typeInfo>
+</extension>
