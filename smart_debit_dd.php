@@ -387,7 +387,8 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed params[cont
     $response['trxn_id'] = $response['reference_number'];
 CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[reference_number]=' .$response['reference_number']);
 
-    UK_Direct_Debit_Form_Main::completeDirectDebitSetup( $response, $params );
+    //Moved this to IPN
+    //UK_Direct_Debit_Form_Main::completeDirectDebitSetup( $response, $params );
 
     return $response;
   }
@@ -527,8 +528,9 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
   }
 
   public function handlePaymentNotification() {
-CRM_Core_Error::debug_log_message('uk_co_vedaconsulting_payment_smartdebitdd handlePaymentNotification');
-CRM_Core_Error::debug_log_message('$_GET[]:' . print_r( $_GET, true ) );
+CRM_Core_Error::debug_log_message( 'uk_co_vedaconsulting_payment_smartdebitdd handlePaymentNotification' );
+CRM_Core_Error::debug_log_message( '$_GET[]:'  . print_r( $_GET, true ) );
+CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
 
     CRM_Core_Error::debug( 'Smart Debit handlePaymentNotification');
 
