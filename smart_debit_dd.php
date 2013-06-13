@@ -87,6 +87,31 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     }
   }
 
+  function smart_debit_dd_civicrm_config( &$config ) {
+
+      $template =& CRM_Core_Smarty::singleton( );
+
+      $batchingRoot = dirname( __FILE__ );
+
+      $batchingDir = $batchingRoot . DIRECTORY_SEPARATOR . 'templates';
+
+      if ( is_array( $template->template_dir ) ) {
+          array_unshift( $template->template_dir, $batchingDir );
+      } else {
+          $template->template_dir = array( $batchingDir, $template->template_dir );
+      }
+
+      // also fix php include path
+      $include_path = $batchingRoot . PATH_SEPARATOR . get_include_path( );
+      set_include_path( $include_path );
+
+  }
+
+  function smart_debit_dd_civicrm_xmlMenu( &$files ) {
+    $files[] = dirname(__FILE__)."/xml/Menu/CustomTestForm.xml";
+  }
+
+
   function getUserEmail( &$params ) {
     // Set email
     if ( !empty( $params['email-Primary'] ) ) {
@@ -134,8 +159,11 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     return $collectionFrequency;
   }
 
-  function preparePostArray( $fields, $self = null ) {
+  function replaceCommaWithSpace( $pString ) {
+    return str_replace( ',', ' ', $pString );
+  }
 
+  function preparePostArray( $fields, $self = null ) {
     /*
      * TO DO
      * Promotion - Need to get the page ID
@@ -165,8 +193,9 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
 
     if ( isset( $fields['contactID'] ) ) {
         $payerReference = $fields['contactID'];
-    }
-    else {
+    } elseif ( isset( $fields['cms_contactID'] ) ) {
+      $payerReference = $fields['cms_contactID'];
+    } else {
         $payerReference = 'CIVICRMEXT';
     }
 
@@ -178,8 +207,8 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
       'variable_ddi[payer_reference]'     => $payerReference,
       'variable_ddi[first_name]'          => $fields['billing_first_name'],
       'variable_ddi[last_name]'           => $fields['billing_last_name'],
-      'variable_ddi[address_1]'           => $fields['billing_street_address-5'],
-      'variable_ddi[town]'                => $fields['billing_city-5'],
+      'variable_ddi[address_1]'           => self::replaceCommaWithSpace( $fields['billing_street_address-5'] ),
+      'variable_ddi[town]'                => self::replaceCommaWithSpace( $fields['billing_city-5'] ),
       'variable_ddi[postcode]'            => $fields['billing_postal_code-5'],
       'variable_ddi[country]'             => $fields['billing_country_id-5'], //*** $params['billing_country-5']
       'variable_ddi[account_name]'        => $fields['account_holder'],
