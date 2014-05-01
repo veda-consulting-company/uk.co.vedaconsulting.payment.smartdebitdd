@@ -27,9 +27,8 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    * mode of operation: live or test
    *
    * @var object
-   * @static
    */
-  static protected $_mode = null;
+  protected $_mode = null;
 
   /**
    * Constructor
@@ -52,7 +51,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    * @static
    *
    */
-  static function &singleton( $mode, &$paymentProcessor ) {
+  static function &singleton( $mode, &$paymentProcessor, &$paymentForm = NULL, $force = FALSE ) {
       $processorName = $paymentProcessor['name'];
       if (self::$_singleton[$processorName] === null ) {
           self::$_singleton[$processorName] = new self( $mode, $paymentProcessor );
@@ -544,7 +543,8 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
 */
 
   function buildForm( &$form ) {
-    UK_Direct_Debit_Form_Main::buildDirectDebit( $form );
+    $ddForm = new UK_Direct_Debit_Form_Main();
+    $ddForm->buildDirectDebit( $form );
 
     $form->addFormRule( array( 'uk_co_vedaconsulting_payment_smartdebitdd', 'validatePayment' ), $form );
     if (self::getCRMVersion() >= 4.2) {
