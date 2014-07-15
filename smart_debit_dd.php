@@ -111,7 +111,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
   }
 
 
-  function getUserEmail( &$params ) {
+  static function getUserEmail( &$params ) {
     // Set email
     if ( !empty( $params['email-Primary'] ) ) {
       $useremail = $params['email-Primary'];
@@ -133,7 +133,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    * We also may need to send them a letter etc
    *
    */
-  function getCollectionStartDate( &$params ) {
+  static function getCollectionStartDate( &$params ) {
 
     $preferredCollectionDay = $params['preferred_collection_day'];
 
@@ -145,7 +145,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    * Should check the [frequency_unit] and if set use that
    * If not set then default to D
    */
-  function getCollectionFrequency( &$params ) {
+  static function getCollectionFrequency( &$params ) {
     $frequencyUnit = $params['frequency_unit'];
 
     if ( strtolower( $frequencyUnit ) == 'year' ) {
@@ -158,11 +158,11 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     return $collectionFrequency;
   }
 
-  function replaceCommaWithSpace( $pString ) {
+  static function replaceCommaWithSpace( $pString ) {
     return str_replace( ',', ' ', $pString );
   }
 
-  function preparePostArray( $fields, $self = null ) {
+  static function preparePostArray( $fields, $self = null ) {
     /*
      * TO DO
      * Promotion - Need to get the page ID
@@ -240,7 +240,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    *
    */
 
-  function validatePayment( $fields, $files, $self ) {
+  static function validatePayment( $fields, $files, $self ) {
 
     $validateParams = $fields;
 //    $validateParams['bank_account_number'] = null;
@@ -426,7 +426,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
    * @param $params
    * @return array
    */
-  private function invalid( $response, $params ) {
+  static private function invalid( $response, $params ) {
     $msg = "Unfortunately, it seems the details provided are invalid – please double check your billing address and direct debit details and try again.";
     $msg .= "<ul>";
 
