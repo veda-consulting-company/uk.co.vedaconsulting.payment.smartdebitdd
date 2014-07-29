@@ -653,4 +653,99 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
     }
   }
 
+  function isSupported($method = 'changeSubscriptionAmount') {
+    if ($this->_paymentProcessor['payment_processor_type'] != 'Smart Debit') {
+      
+      return FALSE;
+    }
+    return parent::isSupported($method);
+  }
+  
+  function changeSubscriptionAmount(&$message = '', $params = array()) {
+    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+    
+    $post = '';
+    $serviceUserId    = $this->_paymentProcessor['signature'];
+    $username         = $this->_paymentProcessor['user_name'];
+    $password         = $this->_paymentProcessor['password'];
+    $url              = $this->_paymentProcessor['url_api'];
+    $amount           = $params['amount'];
+    $amount           = $amount * 100;
+    $reference        = $params['subscriptionId'];
+    
+    $recur = new CRM_Contribute_BAO_ContributionRecur();
+    $recur->processor_id  = $reference;
+    $recur->find(TRUE);
+    $startDate        = $recur->start_date;
+    $frequency        = $recur->frequency_unit;
+    $installments     = $params['installments'];
+    $timestamp        = strtotime($startDate);
+    $startDate        = date("Y-m-d", $timestamp);
+    $date             = explode('-', $startDate);
+    $year             = $date[0];
+    $month            = $date[1];
+    $day              = $date[2];
+    
+    if($frequency === 'month' && ($installments > 0)) {
+      $month  = $month + $installments;
+        if($month > 12) {
+          $year   = $year + (int)($month / 12);
+          $month  = $month % 12;
+        }
+    }
+           
+    if($frequency === 'year' && ($installments > 0)) {
+      $year = $year + $installments;
+    }
+    
+    $endDate          = date('Y-m-d', mktime(0, 0, 0, $month, $day, $year));
+    $request_path     = 'api/ddi/variable/'.$reference.'/update';
+    
+    $smartDebitParams = array(
+      'variable_ddi[service_user][pslid]' =>  $serviceUserId,
+      'variable_ddi[reference_number]'    =>  $reference,
+      'variable_ddi[regular_amount]'      =>  $amount,
+      'variable_ddi[first_amount]'        =>  $amount,
+      'variable_ddi[default_amount]'      =>  $amount,
+      'variable_ddi[end_date]'            =>  $endDate,
+    );
+    
+    if($startDate == $endDate) {
+      unset($smartDebitParams['variable_ddi[end_date]']);
+    }
+    foreach ( $smartDebitParams as $key => $value ) {
+      $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
+    }
+    
+    $response = requestPost( $url, $post, $username, $password, $request_path );
+
+    return TRUE;
+    }
+    
+  return FALSE;
+  }
+  
+  function cancelSubscription(&$message = '', $params = array()) {
+    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+      $post = '';
+      $serviceUserId    = $this->_paymentProcessor['signature'];
+      $username         = $this->_paymentProcessor['user_name'];
+      $password         = $this->_paymentProcessor['password'];
+      $url              = $this->_paymentProcessor['url_api'];
+      $reference        = $params['subscriptionId'];
+      $request_path     = 'api/ddi/variable/'.$reference.'/cancel';
+      $smartDebitParams = array(
+        'variable_ddi[service_user][pslid]' =>  $serviceUserId,
+        'variable_ddi[reference_number]'    =>  $reference,
+      );
+      foreach ( $smartDebitParams as $key => $value ) {
+        $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
+      }
+    
+      $response = requestPost( $url, $post, $username, $password, $request_path );
+      return TRUE;
+    }
+    
+    return FALSE;
+  }
 }
