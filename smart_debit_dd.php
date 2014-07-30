@@ -2,6 +2,7 @@
 
 require_once 'UK_Direct_Debit/Form/Main.php';
 require_once 'CRM/Core/Payment.php';
+require_once 'CRM/Contribute/Form/UpdateSubscription.php';
 include("smart_debit_includes.php");
 
 /* @todo Calculate Collection Date
@@ -663,67 +664,87 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
   
   function changeSubscriptionAmount(&$message = '', $params = array()) {
     if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
-    
-    $post = '';
-    $serviceUserId    = $this->_paymentProcessor['signature'];
-    $username         = $this->_paymentProcessor['user_name'];
-    $password         = $this->_paymentProcessor['password'];
-    $url              = $this->_paymentProcessor['url_api'];
-    $amount           = $params['amount'];
-    $amount           = $amount * 100;
-    $reference        = $params['subscriptionId'];
-    
-    $recur = new CRM_Contribute_BAO_ContributionRecur();
-    $recur->processor_id  = $reference;
-    $recur->find(TRUE);
-    $startDate        = $recur->start_date;
-    $frequency        = $recur->frequency_unit;
-    $installments     = $params['installments'];
-    $timestamp        = strtotime($startDate);
-    $startDate        = date("Y-m-d", $timestamp);
-    $date             = explode('-', $startDate);
-    $year             = $date[0];
-    $month            = $date[1];
-    $day              = $date[2];
-    
-    if($frequency === 'month' && ($installments > 0)) {
-      $month  = $month + $installments;
-        if($month > 12) {
-          $year   = $year + (int)($month / 12);
-          $month  = $month % 12;
-        }
-    }
-           
-    if($frequency === 'year' && ($installments > 0)) {
-      $year = $year + $installments;
-    }
-    
-    $endDate          = date('Y-m-d', mktime(0, 0, 0, $month, $day, $year));
-    $request_path     = 'api/ddi/variable/'.$reference.'/update';
-    
-    $smartDebitParams = array(
-      'variable_ddi[service_user][pslid]' =>  $serviceUserId,
-      'variable_ddi[reference_number]'    =>  $reference,
-      'variable_ddi[regular_amount]'      =>  $amount,
-      'variable_ddi[first_amount]'        =>  $amount,
-      'variable_ddi[default_amount]'      =>  $amount,
-      'variable_ddi[end_date]'            =>  $endDate,
-    );
-    
-    if($startDate == $endDate) {
-      unset($smartDebitParams['variable_ddi[end_date]']);
-    }
-    foreach ( $smartDebitParams as $key => $value ) {
-      $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
-    }
-    
-    $response = requestPost( $url, $post, $username, $password, $request_path );
 
-    return TRUE;
+      $post = '';
+      $serviceUserId    = $this->_paymentProcessor['signature'];
+      $username         = $this->_paymentProcessor['user_name'];
+      $password         = $this->_paymentProcessor['password'];
+      $url              = $this->_paymentProcessor['url_api'];
+      $accountHolder    = $params['account_holder'];
+      $accountNumber    = $params['bank_account_number'];
+      $sortcode         = $params['bank_identification_number'];
+      $bankName         = $params['bank_name'];
+      $amount           = $params['amount'];
+      $amount           = $amount * 100;
+      $reference        = $params['subscriptionId'];
+
+      $recur = new CRM_Contribute_BAO_ContributionRecur();
+      $recur->processor_id  = $reference;
+      $recur->find(TRUE);
+      $startDate        = $recur->start_date;
+      $frequency        = $recur->frequency_unit;
+      $installments     = $params['installments'];
+      $timestamp        = strtotime($startDate);
+      $startDate        = date("Y-m-d", $timestamp);
+      $date             = explode('-', $startDate);
+      $year             = $date[0];
+      $month            = $date[1];
+      $day              = $date[2];
+
+      if($frequency === 'month' && ($installments > 0)) {
+        $month  = $month + $installments;
+          if($month > 12) {
+            $year   = $year + (int)($month / 12);
+            $month  = $month % 12;
+          }
+      }
+
+      if($frequency === 'year' && ($installments > 0)) {
+        $year = $year + $installments;
+      }
+
+      $endDate          = date('Y-m-d', mktime(0, 0, 0, $month, $day, $year));
+      $request_path     = 'api/ddi/variable/'.$reference.'/update';
+
+      $smartDebitParams = array(
+        'variable_ddi[service_user][pslid]' =>  $serviceUserId,
+        'variable_ddi[reference_number]'    =>  $reference,
+        'variable_ddi[regular_amount]'      =>  $amount,
+        'variable_ddi[first_amount]'        =>  $amount,
+        'variable_ddi[default_amount]'      =>  $amount,
+        'variable_ddi[end_date]'            =>  $endDate,
+        'variable_ddi[account_name]'        =>  $accountHolder,
+        'variable_ddi[sort_code]'           =>  $sortcode,
+        'variable_ddi[account_number]'      =>  $accountNumber,
+      );
+
+      if($startDate == $endDate) {
+        unset($smartDebitParams['variable_ddi[end_date]']);
+      }
+      foreach ( $smartDebitParams as $key => $value ) {
+        $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
+      }
+
+      $response = requestPost( $url, $post, $username, $password, $request_path );
+      $response['reference_number'] = $smartDebitParams['variable_ddi[reference_number]'];
+      
+      // Take action based upon the response status
+      switch ( strtoupper( $response["Status"] ) ) {
+          case 'OK':
+              return self::succeed( $response, $params );
+          case 'REJECTED':
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::rejected( $response, $params );
+          case 'INVALID':
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::invalid( $response, $params );
+          default:
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::error( $response, $params );
+      }
+
     }
-    
-  return FALSE;
-  }
+  } 
   
   function cancelSubscription(&$message = '', $params = array()) {
     if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
@@ -743,9 +764,76 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       }
     
       $response = requestPost( $url, $post, $username, $password, $request_path );
-      return TRUE;
+      $response['reference_number'] = $smartDebitParams['variable_ddi[reference_number]'];
+
+      switch ( strtoupper( $response["Status"] ) ) {
+          case 'OK':
+              return self::succeed( $response, $params );
+          case 'REJECTED':
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::rejected( $response, $params );
+          case 'INVALID':
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::invalid( $response, $params );
+          default:
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::error( $response, $params );
+      }
     }
     
-    return FALSE;
+  }
+  
+  function updateSubscriptionBillingInfo(&$message = '', $params = array()) {
+    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+      
+      CRM_Core_Error::debug_log_message( 'updateSubscriptionBillingInfo $params= '. print_r($params, true), $out = false );
+      $post = '';
+      $serviceUserId    = $this->_paymentProcessor['signature'];
+      $username         = $this->_paymentProcessor['user_name'];
+      $password         = $this->_paymentProcessor['password'];
+      $url              = $this->_paymentProcessor['url_api'];
+      $reference        = $params['subscriptionId'];
+      $firstName        = $params['first_name'];
+      $lastName         = $params['last_name'];
+      $streetAddress    = $params['street_address'];
+      $city             = $params['city'];
+      $postcode         = $params['postal_code'];
+      $state            = $params['state_province'];
+      $country          = $params['country'];
+      
+      
+      $request_path     = 'api/ddi/variable/'.$reference.'/update';
+      $smartDebitParams = array(
+        'variable_ddi[service_user][pslid]' => $serviceUserId,
+        'variable_ddi[reference_number]'    => $reference,
+        'variable_ddi[first_name]'          => $firstName,
+        'variable_ddi[last_name]'           => $lastName,
+        'variable_ddi[address_1]'           => self::replaceCommaWithSpace($streetAddress),
+        'variable_ddi[town]'                => $city,
+        'variable_ddi[postcode]'            => $postcode,
+        'variable_ddi[country]'             => $country,
+      );
+      foreach ( $smartDebitParams as $key => $value ) {
+        $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
+      }
+    
+      $response = requestPost( $url, $post, $username, $password, $request_path );
+      $response['reference_number'] = $smartDebitParams['variable_ddi[reference_number]'];
+
+      switch ( strtoupper( $response["Status"] ) ) {
+          case 'OK':
+              return self::succeed( $response, $params );
+          case 'REJECTED':
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::rejected( $response, $params );
+          case 'INVALID':
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::invalid( $response, $params );
+          default:
+              $_SESSION['contribution_attempt'] = 'failed';
+              return self::error( $response, $params );
+      }
+    }
+    
   }
 }
