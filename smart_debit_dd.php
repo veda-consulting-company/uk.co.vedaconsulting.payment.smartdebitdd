@@ -2,7 +2,6 @@
 
 require_once 'UK_Direct_Debit/Form/Main.php';
 require_once 'CRM/Core/Payment.php';
-require_once 'CRM/Contribute/Form/UpdateSubscription.php';
 include("smart_debit_includes.php");
 
 /* @todo Calculate Collection Date
@@ -664,7 +663,7 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
   
   function changeSubscriptionAmount(&$message = '', $params = array()) {
     if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
-
+      
       $post = '';
       $serviceUserId    = $this->_paymentProcessor['signature'];
       $username         = $this->_paymentProcessor['user_name'];
