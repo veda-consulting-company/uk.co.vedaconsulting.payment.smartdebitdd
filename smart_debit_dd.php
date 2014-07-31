@@ -653,14 +653,6 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
     }
   }
 
-  function isSupported($method = 'changeSubscriptionAmount') {
-    if ($this->_paymentProcessor['payment_processor_type'] != 'Smart Debit') {
-      
-      return FALSE;
-    }
-    return parent::isSupported($method);
-  }
-  
   function changeSubscriptionAmount(&$message = '', $params = array()) {
     if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
       
@@ -725,23 +717,11 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       }
 
       $response = requestPost( $url, $post, $username, $password, $request_path );
-      $response['reference_number'] = $smartDebitParams['variable_ddi[reference_number]'];
-      
-      // Take action based upon the response status
-      switch ( strtoupper( $response["Status"] ) ) {
-          case 'OK':
-              return self::succeed( $response, $params );
-          case 'REJECTED':
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::rejected( $response, $params );
-          case 'INVALID':
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::invalid( $response, $params );
-          default:
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::error( $response, $params );
+      if(strtoupper($response["Status"]) != 'OK') {
+        CRM_Core_Session::setStatus(ts("Unfortunately, it seems the details provided are invalid – please double check your direct debit details and try again."));
+        return FALSE;
       }
-
+      return TRUE;
     }
   } 
   
@@ -763,23 +743,12 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       }
     
       $response = requestPost( $url, $post, $username, $password, $request_path );
-      $response['reference_number'] = $smartDebitParams['variable_ddi[reference_number]'];
-
-      switch ( strtoupper( $response["Status"] ) ) {
-          case 'OK':
-              return self::succeed( $response, $params );
-          case 'REJECTED':
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::rejected( $response, $params );
-          case 'INVALID':
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::invalid( $response, $params );
-          default:
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::error( $response, $params );
+      if(strtoupper($response["Status"]) != 'OK') {
+        CRM_Core_Session::setStatus(ts('Unknown System Error.'));
+        return FALSE;
       }
+      return TRUE;
     }
-    
   }
   
   function updateSubscriptionBillingInfo(&$message = '', $params = array()) {
@@ -817,22 +786,11 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       }
     
       $response = requestPost( $url, $post, $username, $password, $request_path );
-      $response['reference_number'] = $smartDebitParams['variable_ddi[reference_number]'];
-
-      switch ( strtoupper( $response["Status"] ) ) {
-          case 'OK':
-              return self::succeed( $response, $params );
-          case 'REJECTED':
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::rejected( $response, $params );
-          case 'INVALID':
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::invalid( $response, $params );
-          default:
-              $_SESSION['contribution_attempt'] = 'failed';
-              return self::error( $response, $params );
+      if(strtoupper($response["Status"]) != 'OK') {
+        CRM_Core_Session::setStatus(ts('Unfortunately, it seems the authorisation was a rejected – please double check your billing address and try again.'));
+        return FALSE;
       }
+      return TRUE;
     }
-    
   }
 }
