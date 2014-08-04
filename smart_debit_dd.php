@@ -655,7 +655,6 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
 
   function changeSubscriptionAmount(&$message = '', $params = array()) {
     if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
-      
       $post = '';
       $serviceUserId    = $this->_paymentProcessor['signature'];
       $username         = $this->_paymentProcessor['user_name'];
@@ -668,33 +667,20 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       $amount           = $params['amount'];
       $amount           = $amount * 100;
       $reference        = $params['subscriptionId'];
-
-      $recur = new CRM_Contribute_BAO_ContributionRecur();
-      $recur->processor_id  = $reference;
-      $recur->find(TRUE);
-      $startDate        = $recur->start_date;
-      $frequency        = $recur->frequency_unit;
-      $installments     = $params['installments'];
-      $timestamp        = strtotime($startDate);
-      $startDate        = date("Y-m-d", $timestamp);
-      $date             = explode('-', $startDate);
-      $year             = $date[0];
-      $month            = $date[1];
-      $day              = $date[2];
-
-      if($frequency === 'month' && ($installments > 0)) {
-        $month  = $month + $installments;
-          if($month > 12) {
-            $year   = $year + (int)($month / 12);
-            $month  = $month % 12;
-          }
+      $frequencyType    = $params['frequency_unit'];
+      $eDate            = $params['end_date'];
+      $sDate            = $params['start_date'];
+      
+      if(!empty($eDate)) {
+        $endDate        = strtotime($eDate);
+        $endDate        = date("Y-m-d", $endDate);
       }
-
-      if($frequency === 'year' && ($installments > 0)) {
-        $year = $year + $installments;
+      
+      if(!empty($sDate)) {
+        $startDate        = strtotime($sDate);
+        $startDate        = date("Y-m-d", $startDate);
       }
-
-      $endDate          = date('Y-m-d', mktime(0, 0, 0, $month, $day, $year));
+      
       $request_path     = 'api/ddi/variable/'.$reference.'/update';
 
       $smartDebitParams = array(
@@ -703,23 +689,35 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
         'variable_ddi[regular_amount]'      =>  $amount,
         'variable_ddi[first_amount]'        =>  $amount,
         'variable_ddi[default_amount]'      =>  $amount,
+        'variable_ddi[start_date]'          =>  $startDate,
         'variable_ddi[end_date]'            =>  $endDate,
         'variable_ddi[account_name]'        =>  $accountHolder,
         'variable_ddi[sort_code]'           =>  $sortcode,
         'variable_ddi[account_number]'      =>  $accountNumber,
+        'variable_ddi[frequency_type]'      =>  $frequencyType
       );
 
-      if($startDate == $endDate) {
-        unset($smartDebitParams['variable_ddi[end_date]']);
-      }
       foreach ( $smartDebitParams as $key => $value ) {
-        $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
+        if(!empty($value))
+          $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
       }
 
       $response = requestPost( $url, $post, $username, $password, $request_path );
-      if(strtoupper($response["Status"]) != 'OK') {
-        CRM_Core_Session::setStatus(ts("Unfortunately, it seems the details provided are invalid – please double check your direct debit details and try again."));
-        return FALSE;
+ 
+      if(strtoupper($response["Status"]) == 'INVALID') {
+        if(!is_array($response['error'])) {
+          CRM_Core_Session::setStatus(ts($response['error'].'<br /> <br />Please correct the error and try again'), 'Validation Error', 'error');
+          return FALSE;
+        }
+        else 
+        {
+          $errors = $response['error'];
+          foreach ($errors as $error) {
+            $message .=$error.'<br />'; 
+          }
+          CRM_Core_Session::setStatus(ts($message.'<br /> Please correct the errors and try again'), 'Validation Errors', 'error');
+          return FALSE;
+        }
       }
       return TRUE;
     }
