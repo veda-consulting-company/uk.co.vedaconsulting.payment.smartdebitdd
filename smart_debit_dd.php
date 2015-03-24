@@ -219,7 +219,8 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
       'variable_ddi[start_date]'          => $collectionDate->format("Y-m-d"),
 //      'variable_ddi[promotion]'           => $fields['page_id'], //*** contributionPageID
       'variable_ddi[email_address]'       => self::getUserEmail( $fields ),
-      'variable_ddi[company_name]'        => UK_Direct_Debit_Form_Main::getDomainName(),
+      // RS: We dont need to send company name to Smat debit API
+      //'variable_ddi[company_name]'        => UK_Direct_Debit_Form_Main::getDomainName(),
       'variable_ddi[frequency_type]'      => self::getCollectionFrequency( $fields )
     );
 
