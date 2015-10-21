@@ -380,7 +380,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
   private function validate_succeed( $response, &$params ) {
 
     // Clear any old error messages from stack
-    drupal_get_messages();
+    // drupal_get_messages();
 
     $response['trxn_id'] = $params['ddi_reference'];
  //   return $response;
@@ -411,7 +411,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
 CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed params[contributionID]=' .$params['contributionID']);
 
     // Clear any old error messages from stack
-    drupal_get_messages();
+    // drupal_get_messages();
 
     $response['trxn_id'] = $response['reference_number'];
 CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[reference_number]=' .$response['reference_number']);
@@ -448,8 +448,9 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
         }
     endforeach;
     $msg .= "</ul>";
-    drupal_set_message( $msg, 'error', false );
-    watchdog( 'CiviCRM DD Error', $_SESSION["rawresponse"] );
+    CRM_Core_Session::setStatus( $msg, 'error' );
+    //watchdog( 'CiviCRM DD Error', $_SESSION["rawresponse"] );
+    CRM_Core_Error::debug_log_message( 'CiviCRM DD Error' . print_r( $_SESSION["rawresponse"], true ) );
 //    self::createFailedContribution($response, $params); //SRH createFailedContribution errors because $this->_paymentForm doesn't exist
     return CRM_Core_Error::createAPIError( $msg, $response );
   }
@@ -462,8 +463,9 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
    */
   private function error( $response, $params ) {
     $msg = "Unfortunately, it seems there was a problem with your direct debit details – please double check your billing address and card details and try again";
-    drupal_set_message( $msg, 'error', false );
-    watchdog( 'SmartDebit', $response["StatusDetail"], $response, WATCHDOG_ERROR );
+    CRM_Core_Session::setStatus( $msg, 'error' );
+    //watchdog( 'SmartDebit', $response["StatusDetail"], $response, //watchdog_ERROR );
+    CRM_Core_Error::debug_log_message( 'SmartDebit' . print_r( $response["StatusDetail"], true ) );
 //    self::createFailedContribution($response, $params); //SRH createFailedContribution errors because $this->_paymentForm doesn't exist
     return CRM_Core_Error::createAPIError( $msg, $response );
   }
@@ -476,8 +478,9 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
    */
   private function rejected( $response, $params ) {
     $msg = "Unfortunately, it seems the authorisation was a rejected – please double check your billing address and card details and try again.";
-    drupal_set_message( $msg, 'error', false );
-    watchdog( 'SmartDebit', $response["StatusDetail"], $response, WATCHDOG_ERROR );
+    CRM_Core_Session::setStatus( $msg, 'error' );
+    //watchdog( 'SmartDebit', $response["StatusDetail"], $response, //watchdog_ERROR );
+    CRM_Core_Error::debug_log_message( 'SmartDebit' . print_r( $response["StatusDetail"], true ) );
     return CRM_Core_Error::createAPIError( $msg, $response );
   }
 
@@ -548,13 +551,13 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
     $ddForm->buildDirectDebit( $form );
 
     $form->addFormRule( array( 'uk_co_vedaconsulting_payment_smartdebitdd', 'validatePayment' ), $form );
-    if (self::getCRMVersion() >= 4.2) {
-        CRM_Core_Region::instance('billing-block')->update( 'default', array( 'disabled' => TRUE ) );
-        CRM_Core_Region::instance('billing-block')->add( array( 'template' => 'CRM/Core/MyPayPalBlock.tpl',
-                                                                'weight'   => -1
-                                                               )
-                                                       );
-    }
+    // if (self::getCRMVersion() >= 4.2) {
+    //     CRM_Core_Region::instance('billing-block')->update( 'default', array( 'disabled' => TRUE ) );
+    //     CRM_Core_Region::instance('billing-block')->add( array( 'template' => 'CRM/Core/MyPayPalBlock.tpl',
+    //                                                             'weight'   => -1
+    //                                                            )
+    //                                                    );
+    // }
   }
 
   public function handlePaymentNotification() {
