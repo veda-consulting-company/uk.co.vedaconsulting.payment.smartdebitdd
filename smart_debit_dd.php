@@ -242,7 +242,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    */
 
   static function validatePayment( $fields, $files, $self ) {
-
+   
     $validateParams = $fields;
 //    $validateParams['bank_account_number'] = null;
 
@@ -546,7 +546,10 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
   function buildForm( &$form ) {
     $ddForm = new UK_Direct_Debit_Form_Main();
     $ddForm->buildDirectDebit( $form );
-
+ // If we are updating billing address of smart debit mandate we don't need to validate, validation will happen in updateSubscriptionBillingInfo method
+    if ($form->getVar('_name') == 'UpdateBilling') {
+      return;
+    }
     $form->addFormRule( array( 'uk_co_vedaconsulting_payment_smartdebitdd', 'validatePayment' ), $form );
     if (self::getCRMVersion() >= 4.2) {
         CRM_Core_Region::instance('billing-block')->update( 'default', array( 'disabled' => TRUE ) );
@@ -750,7 +753,7 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
     }
   }
   
-  function updateSubscriptionBillingInfo(&$message = '', $params = array()) {
+  function updateSubscriptionBillingInfo(&$message = '', $params = array()) {  
     if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
       
       CRM_Core_Error::debug_log_message( 'updateSubscriptionBillingInfo $params= '. print_r($params, true), $out = false );
