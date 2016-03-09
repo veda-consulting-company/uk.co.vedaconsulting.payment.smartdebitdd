@@ -338,8 +338,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    * @access public
    *
    */
-  function doDirectPayment( &$params ) {
-  
+  function doDirectPayment( &$params ) {  
     $validateParams   = $params;
     $smartDebitParams = self::preparePostArray( $validateParams );
     $serviceUserId    = $this->_paymentProcessor['signature'];
