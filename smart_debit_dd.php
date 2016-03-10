@@ -147,9 +147,13 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    */
   static function getCollectionFrequency( &$params ) {
     $frequencyUnit = $params['frequency_unit'];
+    $frequencyInterval = $params['frequency_interval'];
 
     if ( strtolower( $frequencyUnit ) == 'year' ) {
       $collectionFrequency = 'Y';
+    }
+    elseif (strtolower( $frequencyUnit ) == 'month' && $frequencyInterval == 3 ) {
+      $collectionFrequency = 'Q';
     }
     else {
       $collectionFrequency = 'M';
