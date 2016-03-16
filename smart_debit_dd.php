@@ -565,6 +565,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
     //                                                            )
     //                                                    );
     // }
+    return TRUE;
   }
 
   public function handlePaymentNotification() {
