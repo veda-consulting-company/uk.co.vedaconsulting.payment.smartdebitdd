@@ -552,7 +552,8 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
 
   function buildForm( &$form ) {
     $ddForm = new UK_Direct_Debit_Form_Main();
-    $ddForm->buildDirectDebit( $form );
+    // set true brings dd form fields to required
+    $ddForm->buildDirectDebit( $form, TRUE );
  // If we are updating billing address of smart debit mandate we don't need to validate, validation will happen in updateSubscriptionBillingInfo method
     if ($form->getVar('_name') == 'UpdateBilling') {
       return;
