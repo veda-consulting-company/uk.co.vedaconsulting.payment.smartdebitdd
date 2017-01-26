@@ -452,11 +452,11 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
         }
     endforeach;
     $msg .= "</ul>";
-    CRM_Core_Session::setStatus( $msg, ts('Smart Debit') );
+    CRM_Core_Session::setStatus( $msg, ts('Direct Debit') );
     //watchdog( 'CiviCRM DD Error', $_SESSION["rawresponse"] );
     CRM_Core_Error::debug_log_message( 'CiviCRM DD Error' . print_r( $_SESSION["rawresponse"], true ) );
 //    self::createFailedContribution($response, $params); //SRH createFailedContribution errors because $this->_paymentForm doesn't exist
-    return false;
+    return CRM_Core_Error::createAPIError($msg, $response);
   }
 
   /**
@@ -467,11 +467,11 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
    */
   private function error( $response, $params ) {
     $msg = "Unfortunately, it seems there was a problem with your direct debit details – please double check your billing address and card details and try again";
-    CRM_Core_Session::setStatus( $msg, ts('Smart Debit') );
+    CRM_Core_Session::setStatus( $msg, ts('Direct Debit') );
     //watchdog( 'SmartDebit', $response["StatusDetail"], $response, //watchdog_ERROR );
     CRM_Core_Error::debug_log_message( 'SmartDebit' . print_r( $response["StatusDetail"], true ) );
 //    self::createFailedContribution($response, $params); //SRH createFailedContribution errors because $this->_paymentForm doesn't exist
-    return false;
+      return CRM_Core_Error::createAPIError($msg, $response);
   }
 
   /**
@@ -482,7 +482,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
    */
   private function rejected( $response, $params ) {
     $msg = "Unfortunately, it seems the authorisation was rejected – please double check your billing address and card details and try again.";
-    CRM_Core_Session::setStatus( $msg, ts('Smart Debit') );
+    CRM_Core_Session::setStatus( $msg, ts('Direct Debit') );
     //watchdog( 'SmartDebit', $response["StatusDetail"], $response, //watchdog_ERROR );
     CRM_Core_Error::debug_log_message( 'SmartDebit' . print_r( $response["StatusDetail"], true ) );
     return false;
