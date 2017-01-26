@@ -377,7 +377,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
   }
 
   /**
-   * SagePay payment has succeeded
+   * SmartDebit payment has succeeded
    * @param $response
    * @return array
    */
@@ -407,7 +407,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
 
 
   /**
-   * SagePay payment has succeeded
+   * SmartDebit payment has succeeded
    * @param $response
    * @return array
    */
@@ -426,7 +426,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
     return $response;
   }
   /**
-   * SagePay payment has failed
+   * SmartDebit payment has failed
    * @param $response
    * @param $params
    * @return array
@@ -460,7 +460,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
   }
 
   /**
-   * SagePay payment has returned a status we do not understand
+   * SmartDebit payment has returned a status we do not understand
    * @param $response
    * @param $params
    * @return array
@@ -475,7 +475,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
   }
 
   /**
-   * SagePay payment has failed
+   * SmartDebit payment has failed
    * @param $response
    * @param $params
    * @return array
