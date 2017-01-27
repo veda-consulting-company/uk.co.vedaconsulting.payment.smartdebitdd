@@ -456,7 +456,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
     //watchdog( 'CiviCRM DD Error', $_SESSION["rawresponse"] );
     CRM_Core_Error::debug_log_message( 'CiviCRM DD Error' . print_r( $_SESSION["rawresponse"], true ) );
 //    self::createFailedContribution($response, $params); //SRH createFailedContribution errors because $this->_paymentForm doesn't exist
-    return CRM_Core_Error::createAPIError($msg, $response);
+    return CRM_Core_Error::createAPIError( $msg, $response );
   }
 
   /**
@@ -471,7 +471,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
     //watchdog( 'SmartDebit', $response["StatusDetail"], $response, //watchdog_ERROR );
     CRM_Core_Error::debug_log_message( 'SmartDebit' . print_r( $response["StatusDetail"], true ) );
 //    self::createFailedContribution($response, $params); //SRH createFailedContribution errors because $this->_paymentForm doesn't exist
-      return CRM_Core_Error::createAPIError($msg, $response);
+    return CRM_Core_Error::createAPIError( $msg, $response );
   }
 
   /**
@@ -485,7 +485,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
     CRM_Core_Session::setStatus( $msg, ts('Direct Debit') );
     //watchdog( 'SmartDebit', $response["StatusDetail"], $response, //watchdog_ERROR );
     CRM_Core_Error::debug_log_message( 'SmartDebit' . print_r( $response["StatusDetail"], true ) );
-    return false;
+    return CRM_Core_Error::createAPIError( $msg, $response );
   }
 
   /**
