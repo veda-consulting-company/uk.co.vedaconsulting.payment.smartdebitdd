@@ -23,22 +23,6 @@ ob_start();
 * Useful functions for all pages in this kit
 **************************************************************************************************/
 
-//Function to redirect browser
-function redirect($url)
-{
-   if (!headers_sent())
-        header('Location: '.$url);
-   else
-   {
-        echo '<script type="text/javascript">';
-        echo 'window.location.href="'.$url.'";';
-        echo '</script>';
-        echo '<noscript>';
-        echo '<meta http-equiv="refresh" content="0;url='.$url.'" />';
-        echo '</noscript>';
-   }
-}
-
 /* Base 64 Encoding function **
 ** PHP does it natively but just for consistency and ease of maintenance, let's declare our own function **/
 

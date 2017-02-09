@@ -1,14 +1,11 @@
 <?php
 
+require_once 'smart_debit_dd.civix.php';
 require_once 'UK_Direct_Debit/Form/Main.php';
 require_once 'CRM/Core/Payment.php';
 include("smart_debit_includes.php");
 
 /* @todo Calculate Collection Date
- * @todo Need to Store the SUN somewhere
- * @todo
- *
- *
  */
 
 
@@ -87,27 +84,11 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
   }
 
   function smart_debit_dd_civicrm_config( &$config ) {
-
-      $template =& CRM_Core_Smarty::singleton( );
-
-      $batchingRoot = dirname( __FILE__ );
-
-      $batchingDir = $batchingRoot . DIRECTORY_SEPARATOR . 'templates';
-
-      if ( is_array( $template->template_dir ) ) {
-          array_unshift( $template->template_dir, $batchingDir );
-      } else {
-          $template->template_dir = array( $batchingDir, $template->template_dir );
-      }
-
-      // also fix php include path
-      $include_path = $batchingRoot . PATH_SEPARATOR . get_include_path( );
-      set_include_path( $include_path );
-
+    _smartdebit_civix_civicrm_config($config);
   }
 
   function smart_debit_dd_civicrm_xmlMenu( &$files ) {
-    $files[] = dirname(__FILE__)."/xml/Menu/CustomTestForm.xml";
+    _smartdebit_debit_civix_civicrm_xmlMenu($files);
   }
 
 
@@ -390,21 +371,6 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
  //   return $response;
     return true;
   }
- /*
-  static function validatePayment($fields, $files, $self) {
-    $errors = array( );
-    if (empty($fields['account_holder'])) {
-      $errors['account_holder'] = ts('This field cannot be empty');
-    }
-
-    if (($fields['account_holder']  && $fields['bank_account_number']) != 10) {
-      $errors['bank_account_number'] = ts('The magic number does ot match');
-    }
-
-    return empty($errors) ? TRUE : $errors;
-  }
-*/
-
 
   /**
    * SmartDebit payment has succeeded
@@ -542,13 +508,6 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
   function doTransferCheckout( &$params, $component ) {
     CRM_Core_Error::fatal( ts( 'This function is not implemented' ) );
   }
-
-/*
-  function buildForm(&$form) {
-    require_once 'UK_Direct_Debit/Form/Main.php';
-    UK_Direct_Debit_Form_Main::buildDirectDebitForm($form);
-  }
-*/
 
   function buildForm( &$form ) {
     $ddForm = new UK_Direct_Debit_Form_Main();
