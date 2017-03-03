@@ -124,22 +124,37 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
   /*
    * Determine the frequency based on the recurring params if set
    * Should check the [frequency_unit] and if set use that
-   * If not set then default to D
+   * If not set then default to whatever is set in collection_frequency
    */
   static function getCollectionFrequency( &$params ) {
-    $frequencyUnit = $params['frequency_unit'];
-    $frequencyInterval = $params['frequency_interval'];
+    if (isset($params['frequency_unit'])) {
+      $frequencyUnit = $params['frequency_unit'];
+      $frequencyInterval = (isset($params['frequency_interval'])) ? $params['frequency_interval'] : 1;
 
-    if ( strtolower( $frequencyUnit ) == 'year' ) {
-      $collectionFrequency = 'Y';
+      if (strtolower($frequencyUnit) == 'year') {
+        $collectionFrequency = 'Y';
+      } elseif (strtolower($frequencyUnit) == 'month' && $frequencyInterval == 3) {
+        $collectionFrequency = 'Q';
+      } else {
+        $collectionFrequency = 'M';
+      }
+    } else {
+      $frequencyId = uk_direct_debit_civicrm_getSetting('collection_frequency');
+      // 0=Yearly, 1=Quarterly, 2=Monthly
+      switch ($frequencyId) {
+        case 0:
+          $collectionFrequency = 'Y';
+          break;
+        case 1:
+          $collectionFrequency = 'Q';
+          break;
+        case 2:
+          $collectionFrequency = 'M';
+          break;
+        default:
+          CRM_Core_Error::debug_log_message('ERROR Smart Debit: Collection Frequency is not set! Defaulting to yearly');
+      }
     }
-    elseif (strtolower( $frequencyUnit ) == 'month' && $frequencyInterval == 3 ) {
-      $collectionFrequency = 'Q';
-    }
-    else {
-      $collectionFrequency = 'M';
-    }
-
     return $collectionFrequency;
   }
 
