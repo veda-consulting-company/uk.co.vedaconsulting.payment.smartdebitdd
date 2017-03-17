@@ -1,7 +1,6 @@
 <?php
 
 require_once 'smart_debit_dd.civix.php';
-require_once 'UK_Direct_Debit/Form/Main.php';
 require_once 'CRM/Core/Payment.php';
 include("smart_debit_includes.php");
 
@@ -115,7 +114,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    *
    */
   static function getCollectionStartDate( &$params ) {
-
+    require_once 'UK_Direct_Debit/Form/Main.php';
     $preferredCollectionDay = $params['preferred_collection_day'];
 
     return UK_Direct_Debit_Form_Main::firstCollectionDate( $preferredCollectionDay, null );
@@ -242,7 +241,7 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    */
 
   static function validatePayment( $fields, $files, $self ) {
-   
+    require_once 'UK_Direct_Debit/Form/Main.php';
     $validateParams = $fields;
 //    $validateParams['bank_account_number'] = null;
 
@@ -525,6 +524,7 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
   }
 
   function buildForm( &$form ) {
+    require_once 'UK_Direct_Debit/Form/Main.php';
     $ddForm = new UK_Direct_Debit_Form_Main();
     $ddForm->buildDirectDebit( $form );
  // If we are updating billing address of smart debit mandate we don't need to validate, validation will happen in updateSubscriptionBillingInfo method
