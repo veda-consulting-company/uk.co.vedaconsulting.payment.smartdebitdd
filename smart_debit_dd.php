@@ -82,6 +82,23 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     }
   }
 
+  /**
+   * Implementation of hook_civicrm_install().
+   */
+  function smart_debit_dd_civicrm_install()
+  {
+    _smart_debit_dd_civix_civicrm_install();
+  }
+
+  /**
+   * Implementation of hook_civicrm_uninstall().
+   */
+  function smart_debit_dd_civicrm_uninstall()
+  {
+    _smart_debit_dd_civix_civicrm_uninstall();
+  }
+
+
   function smart_debit_dd_civicrm_config( &$config ) {
     _smartdebit_civix_civicrm_config($config);
   }
