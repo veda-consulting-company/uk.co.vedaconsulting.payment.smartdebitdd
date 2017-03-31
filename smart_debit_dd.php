@@ -125,9 +125,9 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    *
    */
   static function getCollectionStartDate( &$params ) {
-    require_once 'UK_Direct_Debit/Form/Main.php';
+    require_once 'CRM/DirectDebit/Form/Main.php';
     $preferredCollectionDay = $params['preferred_collection_day'];
-    return UK_Direct_Debit_Form_Main::firstCollectionDate( $preferredCollectionDay, NULL );
+    return CRM_DirectDebit_Form_Main::firstCollectionDate($preferredCollectionDay);
   }
 
   /**
@@ -172,29 +172,29 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     return str_replace( ',', ' ', $pString );
   }
 
-  static function preparePostArray( $fields, $self = NULL ) {
-    $collectionDate      = self::getCollectionStartDate( $fields );
-    $amount              = 0;
-    $serviceUserId       = NULL;
-    if ( isset( $fields['amount'] ) ) {
+  static function preparePostArray($fields, $self = NULL) {
+    $collectionDate = self::getCollectionStartDate($fields);
+    $amount = 0;
+    $serviceUserId = NULL;
+    if (isset($fields['amount'])) {
       // Set amount in pence if not already set that way.
       $amount = $fields['amount'];
       // $amount might be a string (?) e.g. £12.00, so try just in case
       try {
         $amount = $amount * 100;
-      } catch ( Exception $e ) {
+      } catch (Exception $e) {
         //Leave amount as it was
         $amount = $fields['amount'];
       }
     }
 
-    if ( isset( $self->_paymentProcessor['signature'] ) ) {
+    if (isset($self->_paymentProcessor['signature'])) {
       $serviceUserId = $self->_paymentProcessor['signature'];
     }
 
-    if ( isset( $fields['contactID'] ) ) {
+    if (isset($fields['contactID'])) {
       $payerReference = $fields['contactID'];
-    } elseif ( isset( $fields['cms_contactID'] ) ) {
+    } elseif (isset($fields['cms_contactID'])) {
       $payerReference = $fields['cms_contactID'];
     } else {
       $payerReference = 'CIVICRMEXT';
@@ -218,9 +218,17 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
       'variable_ddi[first_amount]'        => $amount,
       'variable_ddi[default_amount]'      => $amount,
       'variable_ddi[start_date]'          => $collectionDate->format("Y-m-d"),
-      'variable_ddi[email_address]'       => self::getUserEmail( $fields ),
-      'variable_ddi[frequency_type]'      => self::getCollectionFrequency( $fields )
+      'variable_ddi[email_address]'       => self::getUserEmail($fields),
     );
+
+    $collectionFrequency = self::getCollectionFrequency($fields);
+    if ($collectionFrequency == 'O') {
+      $collectionFrequency = 'Y';
+      // Set end date 6 days after start date (min DD freq with Smart Debit is 1 week/7days)
+      $endDate = $collectionDate->add(new DateInterval('P6D'));
+      $smartDebitParams['variable_ddi[end_date]'] = $endDate->format("Y-m-d");
+    }
+    $smartDebitParams['variable_ddi[frequency_type]'] = $collectionFrequency;
 
     return $smartDebitParams;
   }
@@ -235,11 +243,11 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    *
    */
   static function validatePayment( $fields, $files, $self ) {
-    require_once 'UK_Direct_Debit/Form/Main.php';
+    require_once 'CRM/DirectDebit/Form/Main.php';
     $validateParams = $fields;
 
     /* First thing to do is check if the DD has already been submitted */
-    if ( UK_Direct_Debit_Form_Main::isDDSubmissionComplete($fields['ddi_reference'] ) ) {
+    if ( CRM_DirectDebit_Form_Main::isDDSubmissionComplete($fields['ddi_reference'] ) ) {
       $response[] = "PreviouslySubmitted";
       return self::invalid( $response, $validateParams );
     }
@@ -300,18 +308,18 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
         $direct_debit_response['county']      = $response['success'][2]["@attributes"]["county"];
         $direct_debit_response['postcode']    = $response['success'][2]["@attributes"]["postcode"];
 
-        UK_Direct_Debit_Form_Main::record_response( $direct_debit_response );
+        CRM_DirectDebit_Form_Main::record_response( $direct_debit_response );
         return self::validate_succeed( $response, $fields );
       case 'REJECTED':
-        UK_Direct_Debit_Form_Main::record_response( $direct_debit_response );
+        CRM_DirectDebit_Form_Main::record_response( $direct_debit_response );
         $_SESSION['contribution_attempt'] = 'failed';
         return self::rejected( $response, $fields );
       case 'INVALID':
-        UK_Direct_Debit_Form_Main::record_response( $direct_debit_response );
+        CRM_DirectDebit_Form_Main::record_response( $direct_debit_response );
         $_SESSION['contribution_attempt'] = 'failed';
         return self::invalid( $response, $fields );
       default:
-        UK_Direct_Debit_Form_Main::record_response( $direct_debit_response );
+        CRM_DirectDebit_Form_Main::record_response( $direct_debit_response );
         $_SESSION['contribution_attempt'] = 'failed';
         return self::error( $response, $fields );
     }
@@ -371,7 +379,8 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
   private static function validate_succeed( $response, &$params ) {
     // Clear any old error messages from stack
     $response['trxn_id'] = $params['ddi_reference'];
-    return $response;
+    return true;
+    //return $response;
   }
 
   /**
@@ -492,8 +501,8 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
   }
 
   function buildForm( &$form ) {
-    require_once 'UK_Direct_Debit/Form/Main.php';
-    $ddForm = new UK_Direct_Debit_Form_Main();
+    require_once 'CRM/DirectDebit/Form/Main.php';
+    $ddForm = new CRM_DirectDebit_Form_Main();
     $ddForm->buildDirectDebit( $form );
     // If we are updating billing address of smart debit mandate we don't need to validate, validation will happen in updateSubscriptionBillingInfo method
     if ($form->getVar('_name') == 'UpdateBilling') {
