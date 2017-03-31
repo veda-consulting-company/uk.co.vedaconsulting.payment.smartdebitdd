@@ -39,7 +39,6 @@ function base64Encode($plain) {
 
 /* Base 64 decoding function **
 ** PHP does it natively but just for consistency and ease of maintenance, let's declare our own function **/
-
 function base64Decode($scrambled) {
   // Initialise output variable
   $output = "";
@@ -57,7 +56,7 @@ function base64Decode($scrambled) {
 // Function to check validity of email address entered in form fields
 function is_valid_email($email) {
   $result = TRUE;
-  if(!eregi("^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$", $email)) {
+  if(!preg_match("/^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$/i", $email)) {
     $result = FALSE;
   }
   return $result;
@@ -72,25 +71,20 @@ function requestPost($url, $data, $username, $password, $path){
   // Set a one-minute timeout for this script
   set_time_limit(160);
 
-  // Initialise output variable
-  $output = array();
-
   $options = array(
-                    CURLOPT_RETURNTRANSFER => true, // return web page
-                    CURLOPT_HEADER => false, // don't return headers
-                    CURLOPT_POST => true,
+                    CURLOPT_RETURNTRANSFER => TRUE, // return web page
+                    CURLOPT_HEADER => FALSE, // don't return headers
+                    CURLOPT_POST => TRUE,
                     CURLOPT_USERPWD => $username . ':' . $password,
                     CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
                     CURLOPT_HTTPHEADER => array("Accept: application/xml"),
                     CURLOPT_USERAGENT => "XYZ Co's PHP iDD Client", // Let SmartDebit see who we are
-                    CURLOPT_SSL_VERIFYHOST => false,
-                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => FALSE,
+                    CURLOPT_SSL_VERIFYPEER => FALSE,
                   );
   
   $session = curl_init( $url . $path );
-  
   curl_setopt_array( $session, $options );
-  
 
   // Tell curl that this is the body of the POST
   curl_setopt ($session, CURLOPT_POSTFIELDS, $data);
@@ -117,7 +111,6 @@ function requestPost($url, $data, $username, $password, $path){
         break;
       default:
         $resultsArray["Status"] = "INVALID";
-        //echo "HTTP Error: " . $header["http_code"];
     }
   }
    
@@ -125,5 +118,3 @@ function requestPost($url, $data, $username, $password, $path){
   return $resultsArray;
   
 } // END function requestPost()
-
-?>
