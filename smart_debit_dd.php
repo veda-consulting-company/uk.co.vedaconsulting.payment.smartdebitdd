@@ -1,15 +1,8 @@
 <?php
 
-require_once 'UK_Direct_Debit/Form/Main.php';
+require_once 'smart_debit_dd.civix.php';
 require_once 'CRM/Core/Payment.php';
-include("smart_debit_includes.php");
-
-/* @todo Calculate Collection Date
- * @todo Need to Store the SUN somewhere
- * @todo
- *
- *
- */
+include 'smart_debit_includes.php';
 
 
 class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
@@ -21,14 +14,14 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    * @var object
    * @static
    */
-  static private $_singleton = null;
+  static private $_singleton = NULL;
 
   /**
    * mode of operation: live or test
    *
    * @var object
    */
-  protected $_mode = null;
+  protected $_mode = NULL;
 
   /**
    * Constructor
@@ -52,11 +45,11 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    *
    */
   static function &singleton( $mode, &$paymentProcessor, &$paymentForm = NULL, $force = FALSE ) {
-      $processorName = $paymentProcessor['name'];
-      if (self::$_singleton[$processorName] === null ) {
-          self::$_singleton[$processorName] = new self( $mode, $paymentProcessor );
-      }
-      return self::$_singleton[$processorName];
+    $processorName = $paymentProcessor['name'];
+    if (self::$_singleton[$processorName] === NULL ) {
+      self::$_singleton[$processorName] = new self( $mode, $paymentProcessor );
+    }
+    return self::$_singleton[$processorName];
   }
 
   /**
@@ -66,7 +59,6 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    * @public
    */
   function checkConfig() {
-    $config = CRM_Core_Config::singleton();
     $error  = array();
 
     if ( empty( $this->_paymentProcessor['user_name'] ) ) {
@@ -86,30 +78,29 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     }
   }
 
+  /**
+   * Implementation of hook_civicrm_install().
+   */
+  function smart_debit_dd_civicrm_install()
+  {
+    _smart_debit_dd_civix_civicrm_install();
+  }
+
+  /**
+   * Implementation of hook_civicrm_uninstall().
+   */
+  function smart_debit_dd_civicrm_uninstall()
+  {
+    _smart_debit_dd_civix_civicrm_uninstall();
+  }
+
   function smart_debit_dd_civicrm_config( &$config ) {
-
-      $template =& CRM_Core_Smarty::singleton( );
-
-      $batchingRoot = dirname( __FILE__ );
-
-      $batchingDir = $batchingRoot . DIRECTORY_SEPARATOR . 'templates';
-
-      if ( is_array( $template->template_dir ) ) {
-          array_unshift( $template->template_dir, $batchingDir );
-      } else {
-          $template->template_dir = array( $batchingDir, $template->template_dir );
-      }
-
-      // also fix php include path
-      $include_path = $batchingRoot . PATH_SEPARATOR . get_include_path( );
-      set_include_path( $include_path );
-
+    _smartdebit_civix_civicrm_config($config);
   }
 
   function smart_debit_dd_civicrm_xmlMenu( &$files ) {
-    $files[] = dirname(__FILE__)."/xml/Menu/CustomTestForm.xml";
+    _smartdebit_debit_civix_civicrm_xmlMenu($files);
   }
-
 
   static function getUserEmail( &$params ) {
     // Set email
@@ -123,42 +114,57 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
 
   protected function getCRMVersion() {
     $crmversion = explode( '.'
-                         , ereg_replace( '[^0-9\.]', '', CRM_Utils_System::version() ) );
+                         , preg_replace( '[^0-9\.]', '', CRM_Utils_System::version()));
     return floatval( $crmversion[0] . '.' . $crmversion[1] );
   }
 
-  /*
+  /**
    * From the selected collection day determine when the actual collection start date could be
    * For direct debit we need to allow 10 working days prior to collection for cooling off
    * We also may need to send them a letter etc
    *
    */
   static function getCollectionStartDate( &$params ) {
-
+    require_once 'CRM/DirectDebit/Form/Main.php';
     $preferredCollectionDay = $params['preferred_collection_day'];
-
-    return UK_Direct_Debit_Form_Main::firstCollectionDate( $preferredCollectionDay, null );
+    return CRM_DirectDebit_Form_Main::firstCollectionDate($preferredCollectionDay);
   }
 
-  /*
+  /**
    * Determine the frequency based on the recurring params if set
    * Should check the [frequency_unit] and if set use that
-   * If not set then default to D
+   * If not set then default to whatever is set in collection_frequency
+   *
+   * @return string Y,Q,M,W,O
    */
   static function getCollectionFrequency( &$params ) {
-    $frequencyUnit = $params['frequency_unit'];
-    $frequencyInterval = $params['frequency_interval'];
+    // Smart Debit supports Y, Q, M, W parameters
+    // We return 'O' if the payment is not recurring.  You should then supply an end date to smart debit
+    //    to ensure only a single payment is taken.
+    $frequencyUnit = (isset($params['frequency_unit'])) ? $params['frequency_unit'] : '';
+    $frequencyInterval = (isset($params['frequency_interval'])) ? $params['frequency_interval'] : 1;
 
-    if ( strtolower( $frequencyUnit ) == 'year' ) {
-      $collectionFrequency = 'Y';
+    switch (strtolower($frequencyUnit)) {
+      case 'year':
+        $collectionFrequency = 'Y';
+        break;
+      case 'month':
+        if ($frequencyInterval == 3) {
+          $collectionFrequency = 'Q';
+        } else {
+          $collectionFrequency = 'M';
+        }
+        break;
+      case 'day':
+        if ($frequencyInterval == 7) {
+          $collectionFrequency = 'W';
+        } else {
+          $collectionFrequency = 'D';
+        }
+        break;
+      default:
+          $collectionFrequency = 'O';
     }
-    elseif (strtolower( $frequencyUnit ) == 'month' && $frequencyInterval == 3 ) {
-      $collectionFrequency = 'Q';
-    }
-    else {
-      $collectionFrequency = 'M';
-    }
-
     return $collectionFrequency;
   }
 
@@ -166,45 +172,36 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     return str_replace( ',', ' ', $pString );
   }
 
-  static function preparePostArray( $fields, $self = null ) {
-    /*
-     * TO DO
-     * Promotion - Need to get the page ID
-     */
-
-    $collectionDate      = self::getCollectionStartDate( $fields );
-    $amount              = 0;
-    $serviceUserId       = null;
-    if ( isset( $fields['amount'] ) ) {
-
-        // Set amount in pence if not already set that way.
+  static function preparePostArray($fields, $self = NULL) {
+    $collectionDate = self::getCollectionStartDate($fields);
+    $amount = 0;
+    $serviceUserId = NULL;
+    if (isset($fields['amount'])) {
+      // Set amount in pence if not already set that way.
+      $amount = $fields['amount'];
+      // $amount might be a string (?) e.g. £12.00, so try just in case
+      try {
+        $amount = $amount * 100;
+      } catch (Exception $e) {
+        //Leave amount as it was
         $amount = $fields['amount'];
-
-        // $amount might be a string (?) e.g. £12.00, so try just in case
-        try {
-            $amount = $amount * 100;
-        } catch ( Exception $e ) {
-            //Leave amount as it was
-            $amount = $fields['amount'];
-        }
-
+      }
     }
 
-    if ( isset( $self->_paymentProcessor['signature'] ) ) {
-        $serviceUserId = $self->_paymentProcessor['signature'];
+    if (isset($self->_paymentProcessor['signature'])) {
+      $serviceUserId = $self->_paymentProcessor['signature'];
     }
 
-    if ( isset( $fields['contactID'] ) ) {
-        $payerReference = $fields['contactID'];
-    } elseif ( isset( $fields['cms_contactID'] ) ) {
+    if (isset($fields['contactID'])) {
+      $payerReference = $fields['contactID'];
+    } elseif (isset($fields['cms_contactID'])) {
       $payerReference = $fields['cms_contactID'];
     } else {
-        $payerReference = 'CIVICRMEXT';
+      $payerReference = 'CIVICRMEXT';
     }
 
     // Construct params list to send to Smart Debit ...
     $smartDebitParams = array(
-//      'variable_ddi[service_user][pslid]' => $self->_paymentProcessor['signature'],
       'variable_ddi[service_user][pslid]' => $serviceUserId,
       'variable_ddi[reference_number]'    => $fields['ddi_reference'],
       'variable_ddi[payer_reference]'     => $payerReference,
@@ -221,18 +218,19 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
       'variable_ddi[first_amount]'        => $amount,
       'variable_ddi[default_amount]'      => $amount,
       'variable_ddi[start_date]'          => $collectionDate->format("Y-m-d"),
-//      'variable_ddi[promotion]'           => $fields['page_id'], //*** contributionPageID
-      'variable_ddi[email_address]'       => self::getUserEmail( $fields ),
-      // RS: We dont need to send company name to Smat debit API
-      //'variable_ddi[company_name]'        => UK_Direct_Debit_Form_Main::getDomainName(),
-      'variable_ddi[frequency_type]'      => self::getCollectionFrequency( $fields )
+      'variable_ddi[email_address]'       => self::getUserEmail($fields),
     );
 
-    return $smartDebitParams;
-  }
+    $collectionFrequency = self::getCollectionFrequency($fields);
+    if ($collectionFrequency == 'O') {
+      $collectionFrequency = 'Y';
+      // Set end date 6 days after start date (min DD freq with Smart Debit is 1 week/7days)
+      $endDate = $collectionDate->add(new DateInterval('P6D'));
+      $smartDebitParams['variable_ddi[end_date]'] = $endDate->format("Y-m-d");
+    }
+    $smartDebitParams['variable_ddi[frequency_type]'] = $collectionFrequency;
 
-  function test_validatePayment( &$params ) {
-      self::getMandateDetails( 'ABC123' );
+    return $smartDebitParams;
   }
 
   /**
@@ -244,16 +242,14 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
    * @access public
    *
    */
-
   static function validatePayment( $fields, $files, $self ) {
-   
+    require_once 'CRM/DirectDebit/Form/Main.php';
     $validateParams = $fields;
-//    $validateParams['bank_account_number'] = null;
 
     /* First thing to do is check if the DD has already been submitted */
-    if ( UK_Direct_Debit_Form_Main::isDDSubmissionComplete($fields['ddi_reference'] ) ) {
-        $response[] = "PreviouslySubmitted";
-        return self::invalid( $response, $validateParams );
+    if ( CRM_DirectDebit_Form_Main::isDDSubmissionComplete($fields['ddi_reference'] ) ) {
+      $response[] = "PreviouslySubmitted";
+      return self::invalid( $response, $validateParams );
     }
 
     $smartDebitParams = self::preparePostArray( $validateParams, $self );
@@ -282,50 +278,50 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     $direct_debit_response['confirmation_method']      = $fields['confirmation_method'];
     $direct_debit_response['ddi_reference']            = $fields['ddi_reference'];
     $direct_debit_response['response_status']          = $response['Status'];
-    $direct_debit_response['response_raw']             = null;
-    $direct_debit_response['entity_id']                = null;
-    $direct_debit_response['bank_name']                = null;
-    $direct_debit_response['branch']                   = null;
-    $direct_debit_response['address1']                 = null;
-    $direct_debit_response['address2']                 = null;
-    $direct_debit_response['address3']                 = null;
-    $direct_debit_response['address4']                 = null;
-    $direct_debit_response['town']                     = null;
-    $direct_debit_response['county']                   = null;
-    $direct_debit_response['postcode']                 = null;
+    $direct_debit_response['response_raw']             = NULL;
+    $direct_debit_response['entity_id']                = NULL;
+    $direct_debit_response['bank_name']                = NULL;
+    $direct_debit_response['branch']                   = NULL;
+    $direct_debit_response['address1']                 = NULL;
+    $direct_debit_response['address2']                 = NULL;
+    $direct_debit_response['address3']                 = NULL;
+    $direct_debit_response['address4']                 = NULL;
+    $direct_debit_response['town']                     = NULL;
+    $direct_debit_response['county']                   = NULL;
+    $direct_debit_response['postcode']                 = NULL;
 
     if ( !empty( $response['error'] ) ) {
-        $direct_debit_response['response_raw'] = $response['error'];
+      $direct_debit_response['response_raw'] = $response['error'];
     }
 
     // Take action based upon the response status
     switch ( strtoupper( $response["Status"] ) ) {
-        case 'OK':
-            $direct_debit_response['entity_id']   = isset( $fields['entity_id'] ) ? $fields['entity_id'] : 0;
-            $direct_debit_response['bank_name']   = $response['success'][2]["@attributes"]["bank_name"];
-            $direct_debit_response['branch']      = $response['success'][2]["@attributes"]["branch"];
-            $direct_debit_response['address1']    = $response['success'][2]["@attributes"]["address1"];
-            $direct_debit_response['address2']    = $response['success'][2]["@attributes"]["address2"];
-            $direct_debit_response['address3']    = $response['success'][2]["@attributes"]["address3"];
-            $direct_debit_response['address4']    = $response['success'][2]["@attributes"]["address4"];
-            $direct_debit_response['town']        = $response['success'][2]["@attributes"]["town"];
-            $direct_debit_response['county']      = $response['success'][2]["@attributes"]["county"];
-            $direct_debit_response['postcode']    = $response['success'][2]["@attributes"]["postcode"];
+      case 'OK':
+        $direct_debit_response['entity_id']   = isset( $fields['entity_id'] ) ? $fields['entity_id'] : 0;
+        $direct_debit_response['bank_name']   = $response['success'][2]["@attributes"]["bank_name"];
+        $direct_debit_response['branch']      = $response['success'][2]["@attributes"]["branch"];
+        $direct_debit_response['address1']    = $response['success'][2]["@attributes"]["address1"];
+        $direct_debit_response['address2']    = $response['success'][2]["@attributes"]["address2"];
+        $direct_debit_response['address3']    = $response['success'][2]["@attributes"]["address3"];
+        $direct_debit_response['address4']    = $response['success'][2]["@attributes"]["address4"];
+        $direct_debit_response['town']        = $response['success'][2]["@attributes"]["town"];
+        $direct_debit_response['county']      = $response['success'][2]["@attributes"]["county"];
+        $direct_debit_response['postcode']    = $response['success'][2]["@attributes"]["postcode"];
 
-            UK_Direct_Debit_Form_Main::record_response( $direct_debit_response );
-            return self::validate_succeed( $response, $fields );
-        case 'REJECTED':
-            UK_Direct_Debit_Form_Main::record_response( $direct_debit_response );
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::rejected( $response, $fields );
-        case 'INVALID':
-            UK_Direct_Debit_Form_Main::record_response( $direct_debit_response );
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::invalid( $response, $fields );
-        default:
-            UK_Direct_Debit_Form_Main::record_response( $direct_debit_response );
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::error( $response, $fields );
+        CRM_DirectDebit_Form_Main::record_response( $direct_debit_response );
+        return self::validate_succeed( $response, $fields );
+      case 'REJECTED':
+        CRM_DirectDebit_Form_Main::record_response( $direct_debit_response );
+        $_SESSION['contribution_attempt'] = 'failed';
+        return self::rejected( $response, $fields );
+      case 'INVALID':
+        CRM_DirectDebit_Form_Main::record_response( $direct_debit_response );
+        $_SESSION['contribution_attempt'] = 'failed';
+        return self::invalid( $response, $fields );
+      default:
+        CRM_DirectDebit_Form_Main::record_response( $direct_debit_response );
+        $_SESSION['contribution_attempt'] = 'failed';
+        return self::error( $response, $fields );
     }
   }
 
@@ -347,7 +343,6 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
     $post = '';
     foreach ( $smartDebitParams as $key => $value ) {
       $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
-   //  $post .= ($key != 'variable_ddi[service_user][pslid]' ? '&' : '') . $key . '=' . urlencode($value);
     }
     // Get the API Username and Password
     $username = $this->_paymentProcessor['user_name'];
@@ -362,129 +357,92 @@ class uk_co_vedaconsulting_payment_smartdebitdd extends CRM_Core_Payment {
 
     // Take action based upon the response status
     switch ( strtoupper( $response["Status"] ) ) {
-        case 'OK':
-            return self::succeed( $response, $params );
-        case 'REJECTED':
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::rejected( $response, $params );
-        case 'INVALID':
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::invalid( $response, $params );
-        default:
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::error( $response, $params );
+      case 'OK':
+        return self::succeed( $response, $params );
+      case 'REJECTED':
+        $_SESSION['contribution_attempt'] = 'failed';
+        return self::rejected( $response, $params );
+      case 'INVALID':
+        $_SESSION['contribution_attempt'] = 'failed';
+        return self::invalid( $response, $params );
+      default:
+        $_SESSION['contribution_attempt'] = 'failed';
+        return self::error( $response, $params );
     }
   }
 
   /**
-   * SagePay payment has succeeded
+   * SmartDebit payment has succeeded
    * @param $response
    * @return array
    */
-  private function validate_succeed( $response, &$params ) {
-
+  private static function validate_succeed( $response, &$params ) {
     // Clear any old error messages from stack
-    // drupal_get_messages();
-
     $response['trxn_id'] = $params['ddi_reference'];
- //   return $response;
     return true;
+    //return $response;
   }
- /*
-  static function validatePayment($fields, $files, $self) {
-    $errors = array( );
-    if (empty($fields['account_holder'])) {
-      $errors['account_holder'] = ts('This field cannot be empty');
-    }
-
-    if (($fields['account_holder']  && $fields['bank_account_number']) != 10) {
-      $errors['bank_account_number'] = ts('The magic number does ot match');
-    }
-
-    return empty($errors) ? TRUE : $errors;
-  }
-*/
-
 
   /**
-   * SagePay payment has succeeded
+   * SmartDebit payment has succeeded
    * @param $response
    * @return array
    */
-  private function succeed( $response, &$params ) {
-CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed params[contributionID]=' .$params['contributionID']);
-
-    // Clear any old error messages from stack
-    // drupal_get_messages();
-
+  private static function succeed( $response, &$params ) {
     $response['trxn_id'] = $response['reference_number'];
-CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[reference_number]=' .$response['reference_number']);
-
-    //Moved this to IPN
-    //UK_Direct_Debit_Form_Main::completeDirectDebitSetup( $response, $params );
-
     return $response;
   }
   /**
-   * SagePay payment has failed
+   * SmartDebit payment has failed
    * @param $response
    * @param $params
    * @return array
    */
-  static private function invalid( $response, $params ) {
+  private static function invalid( $response, $params ) {
     $msg = "Unfortunately, it seems the details provided are invalid – please double check your billing address and direct debit details and try again.";
     $msg .= "<ul>";
 
-    foreach( $response as $key => $value ):
-        if ( is_array( $value ) ) {
-            foreach( $value as $errorItem ):
-                $msg .= "<li>";
-                $msg .= $errorItem;
-                $msg .= "</li>";
-            endforeach;
+    foreach( $response as $key => $value ) {
+      if (is_array($value)) {
+        foreach ($value as $errorItem) {
+          $msg .= "<li>";
+          $msg .= $errorItem;
+          $msg .= "</li>";
         }
-        else {
-            if ($key == 'error') {
-                $msg .= "<li>";
-                $msg .= $value;
-                $msg .= "</li>";
-            }
+      } else {
+        if ($key == 'error') {
+          $msg .= "<li>";
+          $msg .= $value;
+          $msg .= "</li>";
         }
-    endforeach;
+      }
+    }
     $msg .= "</ul>";
-    CRM_Core_Session::setStatus( $msg, 'error' );
-    //watchdog( 'CiviCRM DD Error', $_SESSION["rawresponse"] );
-    CRM_Core_Error::debug_log_message( 'CiviCRM DD Error' . print_r( $_SESSION["rawresponse"], true ) );
-//    self::createFailedContribution($response, $params); //SRH createFailedContribution errors because $this->_paymentForm doesn't exist
+    CRM_Core_Session::setStatus( $msg, ts('Direct Debit') );
     return CRM_Core_Error::createAPIError( $msg, $response );
   }
 
   /**
-   * SagePay payment has returned a status we do not understand
+   * SmartDebit payment has returned a status we do not understand
    * @param $response
    * @param $params
    * @return array
    */
-  private function error( $response, $params ) {
+  private static function error( $response, $params ) {
     $msg = "Unfortunately, it seems there was a problem with your direct debit details – please double check your billing address and card details and try again";
-    CRM_Core_Session::setStatus( $msg, 'error' );
-    //watchdog( 'SmartDebit', $response["StatusDetail"], $response, //watchdog_ERROR );
-    CRM_Core_Error::debug_log_message( 'SmartDebit' . print_r( $response["StatusDetail"], true ) );
-//    self::createFailedContribution($response, $params); //SRH createFailedContribution errors because $this->_paymentForm doesn't exist
+    CRM_Core_Session::setStatus( $msg, ts('Direct Debit') );
     return CRM_Core_Error::createAPIError( $msg, $response );
   }
 
   /**
-   * SagePay payment has failed
+   * SmartDebit payment has failed
    * @param $response
    * @param $params
    * @return array
    */
-  private function rejected( $response, $params ) {
-    $msg = "Unfortunately, it seems the authorisation was a rejected – please double check your billing address and card details and try again.";
-    CRM_Core_Session::setStatus( $msg, 'error' );
-    //watchdog( 'SmartDebit', $response["StatusDetail"], $response, //watchdog_ERROR );
-    CRM_Core_Error::debug_log_message( 'SmartDebit' . print_r( $response["StatusDetail"], true ) );
+  private static function rejected( $response, $params ) {
+    $msg = "Unfortunately, it seems the authorisation was rejected – please double check your billing address and card details and try again.";
+    CRM_Core_Session::setStatus( $msg, ts('Direct Debit') );
     return CRM_Core_Error::createAPIError( $msg, $response );
   }
 
@@ -512,12 +470,12 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
     }
 
     $contribution_values = array(
-                                 'contact_id'             => $contact['id'],
-                                 'contribution_status_id' => 4,
-                                 'cancel_reason'          => $response['StatusDetail'],
-                                 'cancel_date'            => CRM_Utils_Date::getToday(),
-                                 'version'                => 3
-                                );
+      'contact_id'             => $contact['id'],
+      'contribution_status_id' => 4,
+      'cancel_reason'          => $response['StatusDetail'],
+      'cancel_date'            => CRM_Utils_Date::getToday(),
+      'version'                => 3
+    );
 
     // Add event data if this is an event payment
     if ( $this->_paymentForm && $this->_paymentForm->_values['event'] ) {
@@ -528,7 +486,6 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
 
     // Create the contribution. We don't need to do anything with it, but it's here for inspection if required.
     $contribution = civicrm_api( 'Contribution', 'Create', $contribution_values );
-
   }
 
   /**
@@ -540,133 +497,56 @@ CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main.succeed response[re
    *
    */
   function doTransferCheckout( &$params, $component ) {
-    CRM_Core_Error::fatal( ts( 'This function is not implemented' ) );
+    CRM_Core_Error::fatal( ts( 'SmartDebit::doTransferCheckout: This function is not implemented' ) );
   }
-
-/*
-  function buildForm(&$form) {
-    require_once 'UK_Direct_Debit/Form/Main.php';
-    UK_Direct_Debit_Form_Main::buildDirectDebitForm($form);
-  }
-*/
 
   function buildForm( &$form ) {
-    $ddForm = new UK_Direct_Debit_Form_Main();
+    require_once 'CRM/DirectDebit/Form/Main.php';
+    $ddForm = new CRM_DirectDebit_Form_Main();
     $ddForm->buildDirectDebit( $form );
- // If we are updating billing address of smart debit mandate we don't need to validate, validation will happen in updateSubscriptionBillingInfo method
+    // If we are updating billing address of smart debit mandate we don't need to validate, validation will happen in updateSubscriptionBillingInfo method
     if ($form->getVar('_name') == 'UpdateBilling') {
       return;
     }
     $form->addFormRule( array( 'uk_co_vedaconsulting_payment_smartdebitdd', 'validatePayment' ), $form );
-    // if (self::getCRMVersion() >= 4.2) {
-    //     CRM_Core_Region::instance('billing-block')->update( 'default', array( 'disabled' => TRUE ) );
-    //     CRM_Core_Region::instance('billing-block')->add( array( 'template' => 'CRM/Core/MyPayPalBlock.tpl',
-    //                                                             'weight'   => -1
-    //                                                            )
-    //                                                    );
-    // }
     return TRUE;
   }
 
-  public function handlePaymentNotification() {
-CRM_Core_Error::debug_log_message( 'uk_co_vedaconsulting_payment_smartdebitdd handlePaymentNotification' );
-CRM_Core_Error::debug_log_message( '$_GET[]:'  . print_r( $_GET, true ) );
-CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
-
-    CRM_Core_Error::debug( 'Smart Debit handlePaymentNotification');
-
+  public static function handlePaymentNotification() {
     require_once 'CRM/Utils/Array.php';
     require_once 'CRM/Core/Payment/SmartDebitIPN.php';
 
-    $module = CRM_Utils_Array::value( 'module', $_GET );
     if ( empty( $_GET ) ) {
-        $rpInvoiceArray = array();
-        $rpInvoiceArray = explode( '&' , $_POST['rp_invoice_id'] );
-        foreach ( $rpInvoiceArray as $rpInvoiceValue ) {
-            $rpValueArray = explode ( '=' , $rpInvoiceValue );
-            if ( $rpValueArray[0] == 'm' ) {
-                $value = $rpValueArray[1];
-            }
+      $rpInvoiceArray = explode( '&' , $_POST['rp_invoice_id'] );
+      foreach ( $rpInvoiceArray as $rpInvoiceValue ) {
+        $rpValueArray = explode ( '=' , $rpInvoiceValue );
+        if ( $rpValueArray[0] == 'm' ) {
+          $value = $rpValueArray[1];
         }
-        CRM_Core_Error::debug_log_message('uk_co_vedaconsulting_payment_smartdebitdd handlePaymentNotification #2');
-
-        $SmartDebitIPN = new CRM_Core_Payment_SmartDebitIPN();
+      }
+      $SmartDebitIPN = new CRM_Core_Payment_SmartDebitIPN();
     } else {
-        CRM_Core_Error::debug_log_message('uk_co_vedaconsulting_payment_smartdebitdd handlePaymentNotification #3');
-        $value         = CRM_Utils_Array::value( 'module', $_GET );
-        $SmartDebitIPN = new CRM_Core_Payment_SmartDebitIPN();
+      $value         = CRM_Utils_Array::value( 'module', $_GET );
+      $SmartDebitIPN = new CRM_Core_Payment_SmartDebitIPN();
     }
-    CRM_Core_Error::debug_log_message('uk_co_vedaconsulting_payment_smartdebitdd handlePaymentNotification value='.$value);
 
     switch ( strtolower( $value ) ) {
-        case 'contribute':
-            $SmartDebitIPN->main( 'contribute' );
-            break;
-        case 'event':
-            $SmartDebitIPN->main( 'event' );
-            break;
-        default     :
-            require_once 'CRM/Core/Error.php';
-            CRM_Core_Error::debug_log_message( "Could not get module name from request url" );
-            echo "Could not get module name from request url<p>";
-            break;
-    }
-  }
-
-  /**
-   * Sets appropriate parameters and calls Sage Pay Direct Payment Processor Version 2.23
-   *
-   * @mandateID is the mandate reference for Smart Debit
-   *
-   * @return array $result
-   * @access public
-   *
-   */
-  function getMandateDetails( $mandateID ) {
-
-    // Construct post string
-    $get = '';
-
-    // Get the API Username and Password
-    $username = $this->_paymentProcessor['user_name'];
-    $password = $this->_paymentProcessor['password'];
-
-    // Send payment POST to the target URL
-    $url          = $this->_paymentProcessor['url_api'];
-    $request_path = 'api/ddi/variable/ABC123456';
-    $response     = requestPost( $url, $post, $username, $password, $request_path );
-
-    // Take action based upon the response status
-    switch ( strtoupper( $response["Status"] ) ) {
-        case 'OK':
-            /* TO DO This needs fixing, not sure how to get the information from the validate call back to the main TPLs so this is my hack */
-            $_SESSION['uk_direct_debit']['bank_name']                 = $response['success'][2]["@attributes"]["bank_name"];
-            $_SESSION['uk_direct_debit']['branch']                    = $response['success'][2]["@attributes"]["branch"];
-            $_SESSION['uk_direct_debit']['address1']                  = $response['success'][2]["@attributes"]["address1"];
-            $_SESSION['uk_direct_debit']['address2']                  = $response['success'][2]["@attributes"]["address2"];
-            $_SESSION['uk_direct_debit']['address3']                  = $response['success'][2]["@attributes"]["address3"];
-            $_SESSION['uk_direct_debit']['address4']                  = $response['success'][2]["@attributes"]["address4"];
-            $_SESSION['uk_direct_debit']['town']                      = $response['success'][2]["@attributes"]["town"];
-            $_SESSION['uk_direct_debit']['county']                    = $response['success'][2]["@attributes"]["county"];
-            $_SESSION['uk_direct_debit']['postcode']                  = $response['success'][2]["@attributes"]["postcode"];
-            $_SESSION['uk_direct_debit']['first_collection_date']     = $smartDebitParams['variable_ddi[start_date]'];
-            $_SESSION['uk_direct_debit']['preferred_collection_day']  = $params['preferred_collection_day'];
-            $_SESSION['uk_direct_debit']['confirmation_method']       = $params['confirmation_method'];
-            return self::validate_succeed($response, $params);
-        case 'REJECTED':
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::rejected($response, $params);
-        case 'INVALID':
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::invalid($response, $params);
-        default:
-            $_SESSION['contribution_attempt'] = 'failed';
-            return self::error($response, $params);
+      case 'contribute':
+        $SmartDebitIPN->main( 'contribute' );
+        break;
+      case 'event':
+        $SmartDebitIPN->main( 'event' );
+        break;
+      default     :
+        require_once 'CRM/Core/Error.php';
+        CRM_Core_Error::debug_log_message( "Could not get module name from request url" );
+        echo "Could not get module name from request url<p>";
+        break;
     }
   }
 
   function changeSubscriptionAmount(&$message = '', $params = array()) {
-    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart_Debit') {
       $post = '';
       $serviceUserId    = $this->_paymentProcessor['signature'];
       $username         = $this->_paymentProcessor['user_name'];
@@ -682,17 +562,17 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       $frequencyType    = $params['frequency_unit'];
       $eDate            = $params['end_date'];
       $sDate            = $params['start_date'];
-      
+
       if(!empty($eDate)) {
         $endDate        = strtotime($eDate);
         $endDate        = date("Y-m-d", $endDate);
       }
-      
+
       if(!empty($sDate)) {
         $startDate        = strtotime($sDate);
         $startDate        = date("Y-m-d", $startDate);
       }
-      
+
       $request_path     = 'api/ddi/variable/'.$reference.'/update';
 
       $smartDebitParams = array(
@@ -715,17 +595,17 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       }
 
       $response = requestPost( $url, $post, $username, $password, $request_path );
- 
+
       if(strtoupper($response["Status"]) == 'INVALID') {
         if(!is_array($response['error'])) {
           CRM_Core_Session::setStatus(ts($response['error'].'<br /> <br />Please correct the error and try again'), 'Validation Error', 'error');
           return FALSE;
         }
-        else 
+        else
         {
           $errors = $response['error'];
           foreach ($errors as $error) {
-            $message .=$error.'<br />'; 
+            $message .=$error.'<br />';
           }
           CRM_Core_Session::setStatus(ts($message.'<br /> Please correct the errors and try again'), 'Validation Errors', 'error');
           return FALSE;
@@ -733,10 +613,10 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       }
       return TRUE;
     }
-  } 
-  
+  }
+
   function cancelSubscription(&$message = '', $params = array()) {
-    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart_Debit') {
       $post = '';
       $serviceUserId    = $this->_paymentProcessor['signature'];
       $username         = $this->_paymentProcessor['user_name'];
@@ -751,7 +631,7 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       foreach ( $smartDebitParams as $key => $value ) {
         $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
       }
-    
+
       $response = requestPost( $url, $post, $username, $password, $request_path );
       if(strtoupper($response["Status"]) != 'OK') {
         CRM_Core_Session::setStatus(ts('Unknown System Error.'));
@@ -760,11 +640,9 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       return TRUE;
     }
   }
-  
-  function updateSubscriptionBillingInfo(&$message = '', $params = array()) {  
-    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
-      
-      CRM_Core_Error::debug_log_message( 'updateSubscriptionBillingInfo $params= '. print_r($params, true), $out = false );
+
+  function updateSubscriptionBillingInfo(&$message = '', $params = array()) {
+    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart_Debit') {
       $post = '';
       $serviceUserId    = $this->_paymentProcessor['signature'];
       $username         = $this->_paymentProcessor['user_name'];
@@ -778,8 +656,7 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       $postcode         = $params['postal_code'];
       $state            = $params['state_province'];
       $country          = $params['country'];
-      
-      
+
       $request_path     = 'api/ddi/variable/'.$reference.'/update';
       $smartDebitParams = array(
         'variable_ddi[service_user][pslid]' => $serviceUserId,
@@ -794,7 +671,7 @@ CRM_Core_Error::debug_log_message( '$_POST[]:' . print_r( $_POST, true ) );
       foreach ( $smartDebitParams as $key => $value ) {
         $post .= ( $key != 'variable_ddi[service_user][pslid]' ? '&' : '' ) . $key . '=' . ( $key != 'variable_ddi[service_user][pslid]' ? urlencode( $value ) : $serviceUserId );
       }
-    
+
       $response = requestPost( $url, $post, $username, $password, $request_path );
       if(strtoupper($response["Status"]) != 'OK') {
         CRM_Core_Session::setStatus(ts('Unfortunately, it seems the authorisation was a rejected – please double check your billing address and try again.'));
